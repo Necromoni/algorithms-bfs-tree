@@ -3,7 +3,7 @@ import string
 
 class AdjacencyTable(QtGui.QTableWidget):
     def load_matrix(self, matrix):
-        print('Loading Matrix', matrix)
+        print('Loading Matrix in AdjacencyTable')
         self.clearContents()
         if len(matrix) > 26:
             headers = [letter + string.ascii_lowercase[len(matrix) - 26] for letter in string.ascii_lowercase[0:len(matrix)]]
