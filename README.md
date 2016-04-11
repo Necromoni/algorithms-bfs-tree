@@ -6,7 +6,7 @@ Algorithms Final Project. Graphs a specially formatted .txt file and animates a 
 
 ### Dependencies ###
 
-To run this program and contribute to its development you will need to download and install [Python 2.7](https://www.python.org/download/releases/2.7/) and [PyQt4](https://www.dropbox.com/s/pinhj1yhy06bv63/PyQt4-4.11.4-gpl-Py2.7-Qt4.8.7-x64%20%281%29.exe?dl=0).
+To run this program and contribute to its development you will need to download and install [Python 2.7](https://www.python.org/download/releases/2.7/) and [PyQt4](https://www.dropbox.com/s/pinhj1yhy06bv63/PyQt4-4.11.4-gpl-Py2.7-Qt4.8.7-x64%20%281%29.exe?dl=0) for Python 2.7.
 
 ### Execution ###
 
