@@ -1,23 +1,27 @@
-from GraphingCanvas import GraphingCanvas
-from AdjacencyTable import AdjacencyTable
+from gcanvas import GraphingCanvas
+from atable import AdjacencyTable
 from PyQt4 import QtGui, QtCore
-import Globals
+import constants
 import sys
 
 class main:
-    def __init__(self):        
-        # Create the QMainWindow
+    def __init__(self):
+        # Runs when the program starts
+        
+        # Initialize the Qt Application
         self.app = QtGui.QApplication(sys.argv)
+        
+        # Create the QMainWindow
         self.mw = QtGui.QMainWindow()
-        self.mw.resize(*Globals.window_size)
-        self.mw.setWindowTitle(Globals.window_title)
+        self.mw.resize(*constants.window_size)
+        self.mw.setWindowTitle(constants.window_title)
         self.mw.show()
         
-        # Create the menu bar
+        # Create the menu bar for drop downs
         self.menu_bar = QtGui.QMenuBar(parent=self.mw)
         self.mw.setMenuBar(self.menu_bar)
         
-        # Create the menu bar menus
+        # Create the drop down menus for the menu bar
         self.app_menu = QtGui.QMenu('&App', self.mw)
         self.app_menu.addAction('&Reset', self.reset, QtCore.Qt.Key_F2)
         self.app_menu.addSeparator()
@@ -34,17 +38,17 @@ class main:
         self.help_menu.addAction('About &Qt', self.clicked_about)
         self.menu_bar.addMenu(self.help_menu)
         
-        # Create the central widget
+        # Create the central widget; simply a widget to parent other widgets to
         self.central_widget = QtGui.QWidget(self.mw)
         self.central_layout = QtGui.QVBoxLayout()
         self.central_widget.setLayout(self.central_layout)
         self.mw.setCentralWidget(self.central_widget)
         
-        # Create the graphing canvas
+        # Create the graphing canvas; parent it to the central widget's layout
         self.graph = GraphingCanvas()
         self.central_layout.addWidget(self.graph)
         
-        # Create the bottom layout
+        # Create the bottom layout; parent to the central widget's layout
         self.bottom_layout = QtGui.QHBoxLayout()
         self.central_layout.addLayout(self.bottom_layout)
         
@@ -106,7 +110,7 @@ class main:
         self.graph.clear()
         
     def clicked_about(self):
-        QtGui.QMessageBox.about(self.mw, Globals.about_title, Globals.about_message)
+        QtGui.QMessageBox.about(self.mw, constants.about_title, constants.about_message)
     
     def load_graph(self, points=None, edges=None):
         if self.points and self.edges:
@@ -118,4 +122,6 @@ class main:
             self.edges = edges
             self.graph.load_edges(self.edges)
 
+
+# Runs main when script is run; calling __init__
 main()
