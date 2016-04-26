@@ -1,6 +1,5 @@
-from PyQt4 import QtGui, QtCore
+from PyQt4 import QtGui
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import constants
 import matplotlib.pyplot as plt
@@ -8,7 +7,8 @@ import networkx as nx
 import string
 import random
 import numpy as np
-import matplotlib.pyplot as plt
+import time
+
 
 class GraphingCanvas(QtGui.QDialog):
     def __init__(self, parent=None):
@@ -35,7 +35,9 @@ class GraphingCanvas(QtGui.QDialog):
     
     def reset_canvas(self):
         # FIXME: Currently this method doesnt reset the canvas properly
+
         # Possible fixes: Find a way to reset the canvas | Re-initialize the entire canvas | Restart the program with saved state
+        '''
         self.layout.removeWidget(self.toolbar)
         self.layout.removeWidget(self.canvas)
         self.toolbar = None
@@ -47,7 +49,93 @@ class GraphingCanvas(QtGui.QDialog):
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
+        '''
         self.canvas.draw()
+
+    def animate_bfs(self, start_point=0):
+        current_point = start_point
+        queue = []
+        removed_points = []
+        edge_list = self.edge_list[:]
+        queue.insert(0, current_point)
+
+        def toLetter(number):
+            return string.ascii_lowercase[number]
+
+        while current_point != -1:
+            current_edges = []
+            print('--------------------')
+            print('POINT: ', toLetter(current_point))
+            print('QUEUE: ', [toLetter(i) for i in queue])
+            # Get adjacent edges
+            matched_points = []
+            crosses = []
+            for edge in edge_list:
+                if edge[0] != current_point and edge[1] != current_point:
+                    # This edge has nothing to do with our current point
+                    continue
+                elif edge[0] == current_point:
+                    # The point on the left is our current point, so the point on the right is adjacent
+                    adjacent_point_index = 1
+                else:
+                    # The point on the right is our current point, so the point on the left is adjacent
+                    adjacent_point_index = 0
+
+                # Handle the adjacent point
+                adjacent_point = edge[adjacent_point_index]
+                if adjacent_point in queue or adjacent_point in removed_points:
+                    # This point has been processed before, it is either a cross edge or a parent
+                    if adjacent_point not in crosses:
+                        print('CROSS: ', toLetter(edge[1]))
+                        crosses.append(adjacent_point)
+                elif adjacent_point in matched_points:
+                    # This point has already been matched with our current_point
+                    pass
+                else:
+                    # This point is adjacent and is not a crossed edge, not a parent, and has not been processed
+                    matched_points.append(adjacent_point)
+                    current_edges.append((edge, adjacent_point_index))
+
+            if len(current_edges) == 0:
+                print('DEAD POINT', toLetter(current_point))
+                # There are no adjacent edges, hence this is a leaf or all other nodes have been processed
+                # Dequeue
+                popped = queue.pop()
+                print('DEQUEUE <-', toLetter(popped))
+                removed_points.append(popped)
+                print('QUEUE', [toLetter(i) for i in queue])
+
+                if len(queue) == 0:
+                    # If queue is empty we are done
+                    print('EMPTY QUEUE')
+                    return
+                else:
+                    # Get last node in queue, we aren't done yet
+                    current_point = queue[-1]
+            else:
+                # Sort the adjacent edges that we found in descending order by their index
+                try:
+                    current_edges = sorted(current_edges, key=lambda point: current_edges[1])
+                except IndexError as e:
+                    print(e.message, current_edges)
+
+                # Enqueue all adjacent nodes which are already in descending order
+                for edge, match_index in current_edges:
+                    queue.insert(0, edge[match_index])
+                    print('ENQUEUE -> ', toLetter(edge[match_index]))
+                    try:
+                        edge_list.remove(edge)
+                    except ValueError as e:
+                        print('Failed to remove edge ', toLetter(edge), e.message)
+
+                # Dequeue the parent
+                popped = queue.pop()
+                removed_points.append(popped)
+                print('DEQUEUE <-', toLetter(popped))
+
+                # Get the next starting node
+                current_point = queue[-1]
+            #time.sleep(1)
     
     def load_points(self, points):
         '''
@@ -77,7 +165,7 @@ class GraphingCanvas(QtGui.QDialog):
         plt.clf()
         
         # Create a new axes???
-        self.axes = self.figure.add_subplot(1,1,1)
+        self.axes = self.figure.add_subplot(1, 1, 1)
         
         # Draw the points on the networkx lib
         nx.draw(self.graph, self.pos, node_size=constants.node_size, ax=self.axes)
@@ -85,7 +173,7 @@ class GraphingCanvas(QtGui.QDialog):
         
         # If we already loaded an adjacency matrix before, then load the edges also
         if self.edges is not None:
-            nx.draw_networkx_edges(self.graph, self.pos, self.edge_list, width=1, alpha=1.0, ax=self.axes)
+            nx.draw_networkx_edges(self.graph, self.pos, self.edge_list, width=1, alpha=1.0, ax=self.axes, edge_color='k')
             nx.draw_networkx_edge_labels(self.graph, self.pos, self.edge_labels, ax=self.axes)
         
         # Set the plot's config to have its axis turned on, and have a grid
@@ -128,8 +216,12 @@ class GraphingCanvas(QtGui.QDialog):
             # Plot configurations
             plt.axis('on')
             plt.grid()
+            # Get the figure from the plot
+            self.figure = plt.figure()
             # Draw the plot
             self.canvas.draw()
+
+            self.animate_bfs(0)
     
     def clear(self):
         self.reset_canvas()
