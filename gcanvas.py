@@ -1,4 +1,4 @@
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import constants
@@ -16,6 +16,8 @@ class GraphingCanvas(QtGui.QDialog):
         # Initialize the canvas
         super(GraphingCanvas, self).__init__(parent)
         self.red_edges = []
+        self.queue_view = None
+        self.tree_drawer = None
         self.nodes = []
         self.points = None
         self.edges = None
@@ -76,16 +78,58 @@ class GraphingCanvas(QtGui.QDialog):
             # Draw the figure on the canvas
             self.canvas.draw()
 
+    def set_queue_view(self, queue_view):
+        self.queue_view = queue_view
+
+    def set_tree_drawer(self, tree_drawer):
+        self.tree_drawer = tree_drawer
+
+    def update_tree_drawer(self, args, delay=0):
+        node = args[0]
+        parent = args[1]
+        time.sleep(delay)
+        if node is None:
+            return
+        self.tree_drawer.add_node(node, parent)
+
+    def update_tree_drawer_edge(self, args, delay=0):
+        node = args[0]
+        toNode = args[1]
+        time.sleep(delay)
+        if node is None:
+            return
+        self.tree_drawer.add_edge(node, toNode)
+
+    def update_queue_view(self, queue, delay=0):
+        time.sleep(delay)
+        if len(queue) == 0:
+            text = 'Empty Queue'
+        else:
+            text = ''.join([string.ascii_lowercase[i] + ' ---> ' for i in queue if i != queue[-1]])
+            text += string.ascii_lowercase[queue[-1]]
+        try:
+            self.queue_view.setText(text)
+        except AttributeError as e:
+            print('Queue View not initialized, skipping setting queue view')
+
+    def emit_later(self, emit, args, delay=0):
+        time.sleep(delay)
+        self.emit(emit, args)
+
     def animate_bfs(self, start_point=0):
         current_point = start_point
         queue = []
         removed_points = []
         edge_list = self.edge_list[:]
         queue.insert(0, current_point)
+        self.update_tree_drawer((current_point, None))
 
-        def step(current_point, queue, removed_points, edge_list, delay=0):
+        self.connect(self, QtCore.SIGNAL('add_tree_node(PyQt_PyObject)'), self.update_tree_drawer)
+        self.connect(self, QtCore.SIGNAL('add_tree_edge(PyQt_PyObject)'), self.update_tree_drawer_edge)
+
+        def step(current_point, queue, removed_points, edge_list, delay=0, callback=None):
             time.sleep(delay)
-            delay = 1
+            delay = constants.delay
 
             def toLetter(number):
                 return string.ascii_lowercase[number]
@@ -94,10 +138,12 @@ class GraphingCanvas(QtGui.QDialog):
                 return
 
             current_edges = []
-            print('--------------------')
-            print('POINT: ', toLetter(current_point))
+            #print('--------------------')
+            #print('POINT: ', toLetter(current_point))
+            threading._start_new_thread(self.update_queue_view, (queue[:], delay))
             threading._start_new_thread(self.colorNode, (current_point, 'k', delay))
-            print('QUEUE: ', [toLetter(i) for i in queue])
+            #print('QUEUE: ', [toLetter(i) for i in queue])
+            parent = current_point
             # Get adjacent edges
             matched_points = []
             crosses = []
@@ -118,10 +164,12 @@ class GraphingCanvas(QtGui.QDialog):
                     # This point has been processed before, it is either a cross edge or a parent
                     reversed_edge = tuple([i for i in reversed(edge)])
                     if adjacent_point not in crosses and edge not in self.red_edges and reversed_edge not in self.red_edges:
-                        delay += 1
-                        print('CROSS: ', toLetter(edge[1]))
+                        delay += constants.delay
+                        #print('CROSS: ', toLetter(edge[1]))
                         crosses.append(adjacent_point)
                         threading._start_new_thread(self.colorEdge, (edge, 'yellow', delay))
+                        threading._start_new_thread(self.emit_later, (QtCore.SIGNAL('add_tree_edge(PyQt_PyObject)'), (current_point, adjacent_point), delay))
+
                 elif adjacent_point in matched_points:
                     # This point has already been matched with our current_point
                     pass
@@ -131,18 +179,20 @@ class GraphingCanvas(QtGui.QDialog):
                     current_edges.append((edge, adjacent_point_index))
 
             if len(current_edges) == 0:
-                print('DEAD POINT', toLetter(current_point))
+                #print('DEAD POINT', toLetter(current_point))
                 # There are no adjacent edges, hence this is a leaf or all other nodes have been processed
                 # Dequeue
                 popped = queue.pop()
-                print('DEQUEUE <-', toLetter(popped))
+                #print('DEQUEUE <-', toLetter(popped))
                 removed_points.append(popped)
-                print('QUEUE', [toLetter(i) for i in queue])
+                #print('QUEUE', [toLetter(i) for i in queue])
+                delay += constants.delay
+                threading._start_new_thread(self.update_queue_view, (queue[:], delay))
 
                 if len(queue) == 0:
                     # If queue is empty we are done
-                    print('EMPTY QUEUE')
-                    return
+                    #print('EMPTY QUEUE')
+                    return False
                 else:
                     # Get last node in queue, we aren't done yet
                     current_point = queue[-1]
@@ -155,13 +205,13 @@ class GraphingCanvas(QtGui.QDialog):
 
                 # Enqueue all adjacent nodes which are already in descending order
                 for edge, match_index in current_edges:
-                    delay += 1
+                    delay += constants.delay
                     queue.insert(0, edge[match_index])
-                    print('ENQUEUE -> ', toLetter(edge[match_index]))
+                    #print('ENQUEUE -> ', toLetter(edge[match_index]))
                     # Color the edge red
-                    def doPrint(word):
-                        print(word)
                     threading._start_new_thread(self.colorEdge, (edge, 'red', delay))
+                    threading._start_new_thread(self.update_queue_view, (queue[:], delay))
+                    threading._start_new_thread(self.emit_later, (QtCore.SIGNAL('add_tree_node(PyQt_PyObject)'), (edge[match_index], parent), delay))
                     try:
                         edge_list.remove(edge)
                     except ValueError as e:
@@ -170,11 +220,13 @@ class GraphingCanvas(QtGui.QDialog):
                 # Dequeue the parent
                 popped = queue.pop()
                 removed_points.append(popped)
-                print('DEQUEUE <-', toLetter(popped))
+                #print('DEQUEUE <-', toLetter(popped))
+                delay += constants.delay
+                threading._start_new_thread(self.update_queue_view, (queue[:], delay))
 
                 # Get the next starting node
                 current_point = queue[-1]
-            threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, delay + 1))
+            threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, delay + constants.delay, callback))
 
         step(current_point, queue, removed_points, edge_list, 0)
     

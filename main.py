@@ -1,8 +1,10 @@
 from gcanvas import GraphingCanvas
 from atable import AdjacencyTable
 from PyQt4 import QtGui, QtCore
+from tree import GraphTree
 import constants
 import sys
+import string
 
 
 class main:
@@ -42,35 +44,74 @@ class main:
         
         # Create the central widget; simply a widget to parent other widgets to
         self.central_widget = QtGui.QWidget(self.mw)
-        self.central_layout = QtGui.QVBoxLayout()
+        self.central_layout = QtGui.QHBoxLayout()
         self.central_widget.setLayout(self.central_layout)
         self.mw.setCentralWidget(self.central_widget)
-        
+
+        # L and R layouts
+        self.right_layout = QtGui.QVBoxLayout()
+        self.left_layout = QtGui.QVBoxLayout()
+        self.central_layout.addLayout(self.left_layout)
+        self.central_layout.addLayout(self.right_layout)
+
         # Create the graphing canvas; parent it to the central widget's layout
         self.graph = GraphingCanvas()
-        self.central_layout.addWidget(self.graph)
-        
-        # Create the bottom layout; parent to the central widget's layout
-        self.bottom_layout = QtGui.QHBoxLayout()
-        self.central_layout.addLayout(self.bottom_layout)
+        self.left_layout.addWidget(self.graph)
+        self.graph.setMinimumSize(400, 400)
+
+        # Create the center layout; parent to the central widget's layout
+
+        self.c_layout = QtGui.QHBoxLayout()
+        self.left_layout.addLayout(self.c_layout)
+
+        # Create the Queue View
+        self.queue_layout = QtGui.QVBoxLayout()
+        self.c_layout.addLayout(self.queue_layout)
+        self.queue_title = QtGui.QLabel('Queue:')
+        self.queue_title.setAlignment(QtCore.Qt.AlignLeft)
+        self.queue_layout.addWidget(self.queue_title)
+        self.queue_view = QtGui.QLabel('No Queue')
+        self.queue_layout.addWidget(self.queue_view)
+        self.graph.set_queue_view(self.queue_view)
+
+        # Create the Tree View
+        self.tree_view = QtGui.QLabel('No Tree')
+        self.tree_view.setMinimumSize(constants.window_size[0] / 2, constants.window_size[1])
+        self.tree_drawer = GraphTree(self.tree_view)
+        self.graph.set_tree_drawer(self.tree_drawer)
+
+        # Create the bottom left layout; parent to the central widget's layout
+        self.bottom_left_layout = QtGui.QHBoxLayout()
+        self.left_layout.addLayout(self.bottom_left_layout)
+
         
         # Create the adjacency table
         self.adjacency_layout = QtGui.QVBoxLayout()
-        self.bottom_layout.addLayout(self.adjacency_layout)
+        self.bottom_left_layout.addLayout(self.adjacency_layout)
         self.adjacency_title = QtGui.QLabel('Adjacency Table')
         self.adjacency_title.setAlignment(QtCore.Qt.AlignHCenter)
         self.adjacency_layout.addWidget(self.adjacency_title)
         self.adjacency_table = AdjacencyTable(self.mw)
+        self.adjacency_table.setMaximumSize(300, 300)
         self.adjacency_layout.addWidget(self.adjacency_table)
+
+        # List of points
+        self.points_layout = QtGui.QVBoxLayout()
+        self.bottom_left_layout.addLayout(self.points_layout)
+        self.points_title = QtGui.QLabel('List of Points')
+        self.points_title.setAlignment(QtCore.Qt.AlignHCenter)
+        self.points_layout.addWidget(self.points_title)
+        self.points_view = QtGui.QTextEdit()
+        self.points_view.setMaximumSize(300, 300)
+        self.points_layout.addWidget(self.points_view)
         
-        # Create the queue viewer and put it in the bottom layout
-        self.bfs_layout = QtGui.QVBoxLayout()
-        self.bottom_layout.addLayout(self.bfs_layout)
-        self.bfs_title = QtGui.QLabel('BFS Queue')
-        self.bfs_title.setAlignment(QtCore.Qt.AlignHCenter)
-        self.bfs_layout.addWidget(self.bfs_title)
-        self.bfs_table = AdjacencyTable(self.mw)
-        self.bfs_layout.addWidget(self.bfs_table)
+        # Tree View
+        self.tree_layout = QtGui.QVBoxLayout()
+        self.right_layout.addLayout(self.tree_layout)
+        self.tree_title = QtGui.QLabel('Tree')
+        self.tree_title.setAlignment(QtCore.Qt.AlignHCenter)
+        self.tree_layout.addWidget(self.tree_title)
+        self.tree_layout.addWidget(self.tree_view)
         
         self.points = None
         self.edges = None
@@ -106,6 +147,7 @@ class main:
         contents = filter(lambda x: x in string.printable, f.read()).split('\n')
         # Load the contents into the graph
         self.graph.load_points(contents)
+        self.points_view.setText(QtCore.QString('\n'.join(contents)))
     
     def reset(self):
         # TODO: clear table
@@ -125,7 +167,39 @@ class main:
             self.graph.load_edges(self.edges)
 
     def animate(self):
-        self.graph.animate_bfs()
+        # Init
+        dialog = QtGui.QDialog()
+        dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+
+        # Number Selector
+        number_selector = QtGui.QLineEdit()
+        number_selector.setMaxLength(1)
+
+        def handleButtonClicked():
+            input = str(number_selector.text()).strip(' \t\n\r')
+            if input == '':
+                return
+            input = input.lower()
+            if input in string.ascii_letters:
+                input = string.ascii_lowercase.index(input)
+            else:
+                input = int(input)
+            dialog.close()
+            self.graph.animate_bfs(input)
+
+
+        # OK Button
+        ok_button = QtGui.QPushButton()
+        ok_button.setText('OK')
+        ok_button.connect(ok_button, QtCore.SIGNAL('clicked()'), handleButtonClicked)
+
+        # Layout
+        dialog_layout = QtGui.QVBoxLayout()
+        dialog.setLayout(dialog_layout)
+        dialog_layout.addWidget(number_selector)
+        dialog_layout.addWidget(ok_button)
+
+        dialog.exec_()
 
 
 # Runs main when script is run; calling __init__
