@@ -15,6 +15,8 @@ class GraphingCanvas(QtGui.QDialog):
     def __init__(self, parent=None):
         # Initialize the canvas
         super(GraphingCanvas, self).__init__(parent)
+        self.red_edges = []
+        self.nodes = []
         self.points = None
         self.edges = None
         self.pos = {}
@@ -53,11 +55,26 @@ class GraphingCanvas(QtGui.QDialog):
         '''
         self.canvas.draw()
 
-    def colorEdge(self, edge, delay=0):
+    def colorEdge(self, edge, color, delay=0):
+        if color=='red' or color=='r':
+            self.red_edges.append(edge)
+
         time.sleep(delay)
-        nx.draw_networkx_edges(self.graph, self.pos, [edge], width=2, alpha=1.0, ax=self.axes, edge_color='red')
+        nx.draw_networkx_edges(self.graph, self.pos, [edge], width=2, alpha=1.0, ax=self.axes, edge_color=color)
         # Draw the figure on the canvas
         self.canvas.draw()
+
+    def colorNode(self, node, color, delay=0):
+        time.sleep(delay)
+        existing_node = self.labels.get(node)
+        if existing_node is None:
+            print('Error trying to color node', node)
+        else:
+            labels = {}
+            labels[node] = self.labels[node]
+            nx.draw_networkx_labels(self.graph, self.pos, labels, font_size=15, font_color='g', font_weight='bold', ax=self.axes)
+            # Draw the figure on the canvas
+            self.canvas.draw()
 
     def animate_bfs(self, start_point=0):
         current_point = start_point
@@ -68,6 +85,7 @@ class GraphingCanvas(QtGui.QDialog):
 
         def step(current_point, queue, removed_points, edge_list, delay=0):
             time.sleep(delay)
+            delay = 1
 
             def toLetter(number):
                 return string.ascii_lowercase[number]
@@ -78,6 +96,7 @@ class GraphingCanvas(QtGui.QDialog):
             current_edges = []
             print('--------------------')
             print('POINT: ', toLetter(current_point))
+            threading._start_new_thread(self.colorNode, (current_point, 'k', delay))
             print('QUEUE: ', [toLetter(i) for i in queue])
             # Get adjacent edges
             matched_points = []
@@ -97,9 +116,12 @@ class GraphingCanvas(QtGui.QDialog):
                 adjacent_point = edge[adjacent_point_index]
                 if adjacent_point in queue or adjacent_point in removed_points:
                     # This point has been processed before, it is either a cross edge or a parent
-                    if adjacent_point not in crosses:
-                        print('CROSS: ', toLetter(edge[1]))
+                    reversed_edge = tuple([i for i in reversed(edge)])
+                    if adjacent_point not in crosses and edge not in self.red_edges and reversed_edge not in self.red_edges:
+                        delay += 1
+                        print('CROSS: ', toLetter(edge[1]), edge, 'not in', self.red_edges, reversed_edge, 'not in', self.red_edges)
                         crosses.append(adjacent_point)
+                        threading._start_new_thread(self.colorEdge, (edge, 'yellow', delay))
                 elif adjacent_point in matched_points:
                     # This point has already been matched with our current_point
                     pass
@@ -132,7 +154,6 @@ class GraphingCanvas(QtGui.QDialog):
                     print(e.message, current_edges)
 
                 # Enqueue all adjacent nodes which are already in descending order
-                delay = 0
                 for edge, match_index in current_edges:
                     delay += 1
                     queue.insert(0, edge[match_index])
@@ -140,7 +161,7 @@ class GraphingCanvas(QtGui.QDialog):
                     # Color the edge red
                     def doPrint(word):
                         print(word)
-                    threading._start_new_thread(self.colorEdge, (edge, delay))
+                    threading._start_new_thread(self.colorEdge, (edge, 'red', delay))
                     try:
                         edge_list.remove(edge)
                     except ValueError as e:
@@ -153,7 +174,7 @@ class GraphingCanvas(QtGui.QDialog):
 
                 # Get the next starting node
                 current_point = queue[-1]
-                threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, delay + 1))
+            threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, delay + 1))
 
         step(current_point, queue, removed_points, edge_list, 0)
     
@@ -189,6 +210,8 @@ class GraphingCanvas(QtGui.QDialog):
         
         # Draw the points on the networkx lib
         nx.draw(self.graph, self.pos, node_size=constants.node_size, ax=self.axes)
+        #nx.draw_networkx_nodes(self.graph, self.pos, nodelist=[self.nodes], node_size=constants.node_size, ax=self.axes)
+
         nx.draw_networkx_labels(self.graph, self.pos, self.labels, node_color='r', ax=self.axes)
         
         # If we already loaded an adjacency matrix before, then load the edges also
