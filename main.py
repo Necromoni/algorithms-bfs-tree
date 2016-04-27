@@ -4,6 +4,7 @@ from PyQt4 import QtGui, QtCore
 import constants
 import sys
 
+
 class main:
     def __init__(self):
         # Runs when the program starts
@@ -18,11 +19,12 @@ class main:
         self.mw.show()
         
         # Create the menu bar for drop downs
-        self.menu_bar = QtGui.QMenuBar(parent=self.mw)
+        self.menu_bar = QtGui.QMenuBar()
         self.mw.setMenuBar(self.menu_bar)
         
         # Create the drop down menus for the menu bar
         self.app_menu = QtGui.QMenu('&App', self.mw)
+        self.app_menu.addAction('&Animate', self.animate)
         self.app_menu.addAction('&Reset', self.reset, QtCore.Qt.Key_F2)
         self.app_menu.addSeparator()
         self.app_menu.addAction('&Exit', QtGui.QApplication.quit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
@@ -121,6 +123,9 @@ class main:
         if edges is not None:
             self.edges = edges
             self.graph.load_edges(self.edges)
+
+    def animate(self):
+        self.graph.animate_bfs()
 
 
 # Runs main when script is run; calling __init__

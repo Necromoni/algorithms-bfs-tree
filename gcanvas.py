@@ -8,6 +8,7 @@ import string
 import random
 import numpy as np
 import time
+import threading
 
 
 class GraphingCanvas(QtGui.QDialog):
@@ -52,6 +53,12 @@ class GraphingCanvas(QtGui.QDialog):
         '''
         self.canvas.draw()
 
+    def colorEdge(self, edge, delay=0):
+        time.sleep(delay)
+        nx.draw_networkx_edges(self.graph, self.pos, [edge], width=2, alpha=1.0, ax=self.axes, edge_color='red')
+        # Draw the figure on the canvas
+        self.canvas.draw()
+
     def animate_bfs(self, start_point=0):
         current_point = start_point
         queue = []
@@ -59,10 +66,15 @@ class GraphingCanvas(QtGui.QDialog):
         edge_list = self.edge_list[:]
         queue.insert(0, current_point)
 
-        def toLetter(number):
-            return string.ascii_lowercase[number]
+        def step(current_point, queue, removed_points, edge_list, delay=0):
+            time.sleep(delay)
 
-        while current_point != -1:
+            def toLetter(number):
+                return string.ascii_lowercase[number]
+
+            if current_point == -1:
+                return
+
             current_edges = []
             print('--------------------')
             print('POINT: ', toLetter(current_point))
@@ -120,9 +132,15 @@ class GraphingCanvas(QtGui.QDialog):
                     print(e.message, current_edges)
 
                 # Enqueue all adjacent nodes which are already in descending order
+                delay = 0
                 for edge, match_index in current_edges:
+                    delay += 1
                     queue.insert(0, edge[match_index])
                     print('ENQUEUE -> ', toLetter(edge[match_index]))
+                    # Color the edge red
+                    def doPrint(word):
+                        print(word)
+                    threading._start_new_thread(self.colorEdge, (edge, delay))
                     try:
                         edge_list.remove(edge)
                     except ValueError as e:
@@ -135,7 +153,9 @@ class GraphingCanvas(QtGui.QDialog):
 
                 # Get the next starting node
                 current_point = queue[-1]
-            #time.sleep(1)
+                threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, delay + 1))
+
+        step(current_point, queue, removed_points, edge_list, 0)
     
     def load_points(self, points):
         '''
@@ -220,8 +240,6 @@ class GraphingCanvas(QtGui.QDialog):
             self.figure = plt.figure()
             # Draw the plot
             self.canvas.draw()
-
-            self.animate_bfs(0)
     
     def clear(self):
         self.reset_canvas()
