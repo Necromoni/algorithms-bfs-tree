@@ -119,7 +119,7 @@ class GraphingCanvas(QtGui.QDialog):
                     reversed_edge = tuple([i for i in reversed(edge)])
                     if adjacent_point not in crosses and edge not in self.red_edges and reversed_edge not in self.red_edges:
                         delay += 1
-                        print('CROSS: ', toLetter(edge[1]), edge, 'not in', self.red_edges, reversed_edge, 'not in', self.red_edges)
+                        print('CROSS: ', toLetter(edge[1]))
                         crosses.append(adjacent_point)
                         threading._start_new_thread(self.colorEdge, (edge, 'yellow', delay))
                 elif adjacent_point in matched_points:
