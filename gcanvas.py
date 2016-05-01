@@ -116,18 +116,19 @@ class GraphingCanvas(QtGui.QDialog):
         time.sleep(delay)
         self.emit(emit, args)
 
-    def animate_bfs(self, start_point=0):
+    def animate_bfs(self, start_point=0, end_point=None):
         current_point = start_point
         queue = []
         removed_points = []
         edge_list = self.edge_list[:]
         queue.insert(0, current_point)
         self.update_tree_drawer((current_point, None))
+        print('got end point', end_point)
 
         self.connect(self, QtCore.SIGNAL('add_tree_node(PyQt_PyObject)'), self.update_tree_drawer)
         self.connect(self, QtCore.SIGNAL('add_tree_edge(PyQt_PyObject)'), self.update_tree_drawer_edge)
 
-        def step(current_point, queue, removed_points, edge_list, delay=0, callback=None):
+        def step(current_point, queue, removed_points, edge_list, end_point=None, delay=0, callback=None):
             time.sleep(delay)
             delay = constants.delay
 
@@ -207,17 +208,22 @@ class GraphingCanvas(QtGui.QDialog):
                 for edge, match_index in current_edges:
                     delay += constants.delay
                     queue.insert(0, edge[match_index])
-                    #print('ENQUEUE -> ', toLetter(edge[match_index]))
+                    print('ENQUEUE -> ', toLetter(edge[match_index]))
                     # Color the edge red
                     threading._start_new_thread(self.colorEdge, (edge, 'red', delay))
                     threading._start_new_thread(self.update_queue_view, (queue[:], delay))
                     threading._start_new_thread(self.emit_later, (QtCore.SIGNAL('add_tree_node(PyQt_PyObject)'), (edge[match_index], parent), delay))
+                    print(edge[match_index], end_point)
+                    if (edge[match_index]) == end_point:
+                        return
                     try:
                         edge_list.remove(edge)
                     except ValueError as e:
                         print('Failed to remove edge ', toLetter(edge), e.message)
 
                 # Dequeue the parent
+                if len(queue) == 0:
+                    return
                 popped = queue.pop()
                 removed_points.append(popped)
                 #print('DEQUEUE <-', toLetter(popped))
@@ -226,9 +232,14 @@ class GraphingCanvas(QtGui.QDialog):
 
                 # Get the next starting node
                 current_point = queue[-1]
-            threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, delay + constants.delay, callback))
+                print(current_point, 'end',  end_point)
+                if current_point == end_point:
+                    # We're done
+                    current_point = -1
+                    return
+            threading._start_new_thread(step, (current_point, queue, removed_points, edge_list, end_point, delay + constants.delay, callback))
 
-        step(current_point, queue, removed_points, edge_list, 0)
+        step(current_point, queue, removed_points, edge_list, end_point=end_point, delay=0)
     
     def load_points(self, points):
         '''

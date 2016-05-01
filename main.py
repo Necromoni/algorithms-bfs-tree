@@ -172,20 +172,36 @@ class main:
         dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         # Number Selector
+        number_selector_title = QtGui.QLabel('Start Point (Blank for 0):')
         number_selector = QtGui.QLineEdit()
         number_selector.setMaxLength(1)
+        number_selector_title_2 = QtGui.QLabel('End Point (Blank for last):')
+        number_selector_2 = QtGui.QLineEdit()
+        number_selector_2.setMaxLength(1)
 
         def handleButtonClicked():
             input = str(number_selector.text()).strip(' \t\n\r')
+            input2 = str(number_selector_2.text()).strip(' \t\n\r')
             if input == '':
-                return
+                input = 'a'
+            if input2 == '':
+                input2 = None
+            else:
+                input2 = input2.lower()
+                if input2 in string.ascii_letters:
+                    input2 = string.ascii_lowercase.index(input2)
+                else:
+                    input2 = int(input2)
+
             input = input.lower()
+
             if input in string.ascii_letters:
                 input = string.ascii_lowercase.index(input)
             else:
                 input = int(input)
+
             dialog.close()
-            self.graph.animate_bfs(input)
+            self.graph.animate_bfs(input, input2)
 
 
         # OK Button
@@ -196,7 +212,10 @@ class main:
         # Layout
         dialog_layout = QtGui.QVBoxLayout()
         dialog.setLayout(dialog_layout)
+        dialog_layout.addWidget(number_selector_title)
         dialog_layout.addWidget(number_selector)
+        dialog_layout.addWidget(number_selector_title_2)
+        dialog_layout.addWidget(number_selector_2)
         dialog_layout.addWidget(ok_button)
 
         dialog.exec_()
